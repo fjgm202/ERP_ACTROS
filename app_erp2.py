@@ -5,14 +5,14 @@ import random
 import numpy as np
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="SGO Enterprise - Áridos Maquehue v6.0", page_icon="🚛", layout="wide")
+st.set_page_config(page_title="SGO Enterprise - Áridos Maquehue v7.0", page_icon="🚛", layout="wide")
 
-# --- BASE DE DATOS DE USUARIOS ---
+# --- BASE DE DATOS DE USUARIOS (NOMBRES PERSONALIZADOS) ---
 DB_USUARIOS = {
-    "admin1": {"nombre": "Fernando Administrador", "rol": "Administrador General", "nivel": 1},
-    "gerente_op": {"nombre": "Carlos Mendoza", "rol": "Gerente de Operaciones", "nivel": 1},
-    "jefe_flota": {"nombre": "Juan Pablo Reyes", "rol": "Jefe de Transportes", "nivel": 2},
-    "supervisor_taller": {"nombre": "Master Mecánico Inacap", "rol": "Supervisor de Taller (CMMS)", "nivel": 2},
+    "admin1": {"nombre": "Fernando Gonzalez", "rol": "Administrador General", "nivel": 1},
+    "gerente_op": {"nombre": "Catalyna Gajardo", "rol": "Gerente de Operaciones", "nivel": 1},
+    "jefe_flota": {"nombre": "Nicolas Sandoval", "rol": "Jefe de Transportes", "nivel": 2},
+    "supervisor_taller": {"nombre": "Felipe Herrera", "rol": "Supervisor de Taller (CMMS)", "nivel": 2},
     "mecanico_jefe": {"nombre": "Pedro Aguilera", "rol": "Mecánico Especialista A", "nivel": 3},
     "logistica1": {"nombre": "Andrés Soto", "rol": "Coordinador de Logística", "nivel": 2},
     "despachador": {"nombre": "Manuel Aravena", "rol": "Despachador de Faena", "nivel": 3},
@@ -102,7 +102,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
     
-    # --- NUEVO SELECTOR DE FLOTA ACCESIBLE Y CENTRAL ---
+    # --- SELECTOR DE FLOTA Y CONTROL DE ESTADO ---
     st.markdown("### 🚛 Centro de Mando y Selección de Activos")
     col_sel, col_info = st.columns([2, 1])
     
@@ -119,8 +119,18 @@ else:
     with col_info:
         if camion_sel['estado'] == "OPERATIVO":
             st.success(f"✅ ESTADO: {camion_sel['estado']}")
+            # Botón para deshabilitar manualmente (Solo Administradores/Gerentes/Jefes Nivel 1 y 2)
+            if info_u['nivel'] <= 2:
+                if st.button("⛔ Deshabilitar Unidad (Bloquear)"):
+                    camion_sel['estado'] = "FUERA DE SERVICIO (Manual)"
+                    st.rerun()
         else:
             st.error(f"⚠️ ESTADO: {camion_sel['estado']}")
+            # Botón para habilitar manualmente
+            if info_u['nivel'] <= 2:
+                if st.button("✅ Habilitar Unidad (Operativo)"):
+                    camion_sel['estado'] = "OPERATIVO"
+                    st.rerun()
             
     st.markdown(f"**Modelo:** {camion_sel['modelo']} | **VIN:** `{camion_sel['vin']}` | **Motor:** `{camion_sel['motor_id']}`")
     st.markdown("---")
@@ -239,7 +249,7 @@ else:
                 todos_ok = all([ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13, ch14, ch15, ch16, ch17, ch18, ch19, ch20, ch21, ch22, ch23, ch24, ch25, ch26, ch27, ch28, ch29, ch30, ch31, ch32, ch33, ch34, ch35, ch36, ch37, ch38, ch39, ch40])
                 camion_sel['checklist_historico'].append({"Fecha": str(datetime.date.today()), "Aprobado": todos_ok, "Firma": info_u['nombre']})
                 if not todos_ok:
-                    camion_sel['estado'] = "BLOQUEADO EN TALLER"
+                    camion_sel['estado'] = "BLOQUEADO POR CHECKLIST"
                     st.error("🚨 Vehículo Bloqueado por anomalías en Checklist.")
                 else:
                     camion_sel['estado'] = "OPERATIVO"
@@ -289,7 +299,7 @@ else:
             st.rerun()
         st.dataframe(pd.DataFrame(camion_sel['db_comb']), use_container_width=True)
 
-    # 6. TAB FINANZAS (AMPLIADO Y PROFESIONALIZADO)
+    # 6. TAB FINANZAS
     with tab6:
         st.subheader("📊 Control Financiero, KPIs y Rentabilidad del Activo")
         
@@ -301,11 +311,9 @@ else:
         t_ot = df_o['Costo_Total'].sum() if not df_o.empty else 0
         costo_total = t_comb + t_ot
         
-        # Simulador de rendimiento
-        rendimiento_km_l = (camion_sel['kms'] * 0.005) / t_litros if t_litros > 0 else 2.1 # Valor simulado realista para camión tolva
+        rendimiento_km_l = (camion_sel['kms'] * 0.005) / t_litros if t_litros > 0 else 2.1 
         cpk = costo_total / camion_sel['kms'] if camion_sel['kms'] > 0 else 0
         
-        # Tarjetas de Métricas Superiores
         col_k1, col_k2, col_k3, col_k4 = st.columns(4)
         col_k1.metric("Gasto Total Operativo (YTD)", f"${costo_total:,.0f} CLP", delta="-2.4% vs Mes Anterior", delta_color="inverse")
         col_k2.metric("Inversión en Mantenimiento", f"${t_ot:,.0f} CLP", delta="Dentro del Presupuesto")
@@ -314,11 +322,9 @@ else:
         
         st.markdown("---")
         
-        # Gráficos Financieros
         col_g1, col_g2 = st.columns(2)
         with col_g1:
             st.markdown("#### 📈 Histórico Mensual de Gastos (Proyección)")
-            # Datos simulados para el gráfico
             datos_grafico = pd.DataFrame({
                 'Combustible (CLP)': [300000, 320000, 290000, 340000, t_comb],
                 'Mantenimiento (CLP)': [150000, 0, 500000, 50000, t_ot]
@@ -327,8 +333,8 @@ else:
             
         with col_g2:
             st.markdown("#### 📉 Análisis de Depreciación Lineal")
-            valor_compra = 120000000 # 120 millones
-            vida_util_km = 1000000 # 1 millón de km
+            valor_compra = 120000000 
+            vida_util_km = 1000000 
             depreciacion_acumulada = (camion_sel['kms'] / vida_util_km) * valor_compra
             valor_residual = valor_compra - depreciacion_acumulada
             
@@ -346,7 +352,6 @@ else:
         with col_d2: st.download_button("📥 Matriz Combustible (CSV)", df_c.to_csv(index=False).encode('utf-8'), f"COMBUSTIBLE_{camion_sel['patente']}.csv", "text/csv", use_container_width=True)
         with col_d3: st.download_button("📥 Matriz Rendimiento GPS (CSV)", pd.DataFrame(camion_sel['rutas']).to_csv(index=False).encode('utf-8'), f"LOGISTICA_{camion_sel['patente']}.csv", "text/csv", use_container_width=True)
 
-    # Botón de cierre global
     st.sidebar.divider()
     if st.sidebar.button("Cerrar Sesión Segura (Desconectar)", use_container_width=True):
         st.session_state.conectado = False
