@@ -53,9 +53,14 @@ if 'flota' not in st.session_state:
             "estado": estado_camion,
             "restante_pm": kms_restantes if estado_camion == "OPERATIVO" else random.randint(-500, 1500),
             "checklist_historico": [],
+            # DATA DE COMBUSTIBLE ENRIQUECIDA CON MÁS REGISTROS HISTÓRICOS
             "db_comb": [
+                {"Fecha": "2026-04-12", "Tipo": "Diésel Grado B", "Litros": 240, "Costo": 264000, "Horometro": 18500, "Cargado_Por": "Luis Castro"},
+                {"Fecha": "2026-05-01", "Tipo": "Diésel Grado B", "Litros": 265, "Costo": 291500, "Horometro": 18720, "Cargado_Por": "Manuel Aravena"},
+                {"Fecha": "2026-05-18", "Tipo": "Diésel Grado B", "Litros": 290, "Costo": 319000, "Horometro": 18910, "Cargado_Por": "Luis Castro"},
                 {"Fecha": "2026-06-15", "Tipo": "Diésel Grado B", "Litros": 280, "Costo": 308000, "Horometro": 19100, "Cargado_Por": "Luis Castro"},
-                {"Fecha": "2026-07-06", "Tipo": "Diésel Grado B", "Litros": 310, "Costo": 341000, "Horometro": 19250, "Cargado_Por": "Luis Castro"}
+                {"Fecha": "2026-07-02", "Tipo": "Diésel Grado B", "Litros": 310, "Costo": 341000, "Horometro": 19250, "Cargado_Por": "Andrés Soto"},
+                {"Fecha": "2026-07-07", "Tipo": "Diésel Grado B", "Litros": 275, "Costo": 302500, "Horometro": 19390, "Cargado_Por": "Luis Castro"}
             ],
             "db_ot": [
                 {"ID_OT": "OT-0852", "Sistema": "Frenos", "Prioridad": "Alta", "Tipo": "Correctivo", "Falla": "Desgaste balatas eje 2", "Costo_Total": 450000, "Estado": "Cerrada", "Mecanico": "Felipe Herrera", "Fecha": "2026-06-10"}
@@ -71,7 +76,7 @@ if 'flota' not in st.session_state:
 if not st.session_state.conectado:
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Logo.svg/1024px-Mercedes-Logo.svg.png", width=90)
     st.sidebar.title("SGO Gate - ERP Cloud")
-    st.sidebar.caption("Despliegue Privado | Entorno de Producción v9.2")
+    st.sidebar.caption("Despliegue Privado | Entorno de Producción v9.3")
     
     st.title("🚛 SGO Enterprise - Áridos Maquehue Ltda.")
     st.info("🔐 Autenticación Requerida: Conexión cifrada AES-256 de extremo a extremo.")
@@ -150,7 +155,7 @@ else:
     st.caption(f"**Especificaciones Técnicas:** {camion_sel['modelo']} | **VIN:** `{camion_sel['vin']}` | **Motor:** `{camion_sel['motor_id']}`")
     st.markdown("---")
     
-    # --- MÓDULOS DEL SISTEMA (CON NOMBRES SOLICITADOS POR EL USUARIO) ---
+    # --- MÓDULOS DEL SISTEMA ---
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "🏠 Panel", 
         "📍 GPS y Rutas", 
@@ -167,7 +172,7 @@ else:
         m1.metric("Odómetro Verificado", f"{camion_sel['kms']:,} Km")
         m2.metric("Horómetro Acumulado", f"{camion_sel['horas']:,} Hrs")
         
-        # Lógica Profesional de Batería intacta
+        # Lógica Profesional de Batería
         voltaje = 28.2 if camion_sel['estado'] == "OPERATIVO" else 24.2
         estado_voltaje = "Alternador Cargando" if camion_sel['estado'] == "OPERATIVO" else "Batería en Reposo"
         m3.metric("Voltaje Sistema (24V)", f"{voltaje} V", estado_voltaje, delta_color="normal" if voltaje > 26 else "off")
@@ -219,52 +224,53 @@ else:
             col_ch1, col_ch2, col_ch3, col_ch4 = st.columns(4)
             with col_ch1:
                 st.markdown("**1. Fluidos y Motor**")
-                ch1 = st.checkbox("Nivel Aceite Carter", value=True)
-                ch2 = st.checkbox("Refrigerante Radiador", value=True)
-                ch3 = st.checkbox("Correas Accesorios", value=True)
-                ch4 = st.checkbox("Dirección Hidráulica", value=True)
-                ch5 = st.checkbox("Estanqueidad Combustible", value=True)
-                ch6 = st.checkbox("Filtro Admisión Aire", value=True)
-                ch7 = st.checkbox("Tapa Estanque Diésel", value=True)
-                ch8 = st.checkbox("Nivel Urea (AdBlue)", value=True)
-                ch9 = st.checkbox("Radiador / Intercooler", value=True)
-                ch10 = st.checkbox("Línea de Escape DPF", value=True)
+                # MODIFICACIÓN: Casillas desmarcadas por defecto (value=False)
+                ch1 = st.checkbox("Nivel Aceite Carter", value=False)
+                ch2 = st.checkbox("Refrigerante Radiador", value=False)
+                ch3 = st.checkbox("Correas Accesorios", value=False)
+                ch4 = st.checkbox("Dirección Hidráulica", value=False)
+                ch5 = st.checkbox("Estanqueidad Combustible", value=False)
+                ch6 = st.checkbox("Filtro Admisión Aire", value=False)
+                ch7 = st.checkbox("Tapa Estanque Diésel", value=False)
+                ch8 = st.checkbox("Nivel Urea (AdBlue)", value=False)
+                ch9 = st.checkbox("Radiador / Intercooler", value=False)
+                ch10 = st.checkbox("Línea de Escape DPF", value=False)
             with col_ch2:
                 st.markdown("**2. Chasis y Frenos**")
-                ch11 = st.checkbox("Manómetro Neumático > 100 PSI", value=True)
-                ch12 = st.checkbox("Válvulas de Purga", value=True)
-                ch13 = st.checkbox("Desgaste Balatas/Pastillas", value=True)
-                ch14 = st.checkbox("Freno de Estacionamiento (Maxi)", value=True)
-                ch15 = st.checkbox("Mangueras Flexibles Aire", value=True)
-                ch16 = st.checkbox("Pernos U Suspensión", value=True)
-                ch17 = st.checkbox("Paquete Resortes / Grapas", value=True)
-                ch18 = st.checkbox("Pulmones Neumáticos", value=True)
-                ch19 = st.checkbox("Torque Tuercas Rueda", value=True)
-                ch20 = st.checkbox("Profundidad Banda Rodadura", value=True)
+                ch11 = st.checkbox("Manómetro Neumático > 100 PSI", value=False)
+                ch12 = st.checkbox("Válvulas de Purga", value=False)
+                ch13 = st.checkbox("Desgaste Balatas/Pastillas", value=False)
+                ch14 = st.checkbox("Freno de Estacionamiento (Maxi)", value=False)
+                ch15 = st.checkbox("Mangueras Flexibles Aire", value=False)
+                ch16 = st.checkbox("Pernos U Suspensión", value=False)
+                ch17 = st.checkbox("Paquete Resortes / Grapas", value=False)
+                ch18 = st.checkbox("Pulmones Neumáticos", value=False)
+                ch19 = st.checkbox("Torque Tuercas Rueda", value=False)
+                ch20 = st.checkbox("Profundidad Banda Rodadura", value=False)
             with col_ch3:
                 st.markdown("**3. Estructura e Hidráulica**")
-                ch21 = st.checkbox("Cilindro Levante Telescópico", value=True)
-                ch22 = st.checkbox("Nivel Aceite Hidráulico", value=True)
-                ch23 = st.checkbox("Toma de Fuerza (PTO)", value=True)
-                ch24 = st.checkbox("Pasadores Pivote Tolva", value=True)
-                ch25 = st.checkbox("Mecanismo Ganchos Portalón", value=True)
-                ch26 = st.checkbox("Líneas Alta Presión", value=True)
-                ch27 = st.checkbox("Tacos de Amortiguación Tolva", value=True)
-                ch28 = st.checkbox("Válvula Corte Levante", value=True)
-                ch29 = st.checkbox("Sistema Cubre Carga (Carpa)", value=True)
-                ch30 = st.checkbox("Bisagras Traseras Portalón", value=True)
+                ch21 = st.checkbox("Cilindro Levante Telescópico", value=False)
+                ch22 = st.checkbox("Nivel Aceite Hidráulico", value=False)
+                ch23 = st.checkbox("Toma de Fuerza (PTO)", value=False)
+                ch24 = st.checkbox("Pasadores Pivote Tolva", value=False)
+                ch25 = st.checkbox("Mecanismo Ganchos Portalón", value=False)
+                ch26 = st.checkbox("Líneas Alta Presión", value=False)
+                ch27 = st.checkbox("Tacos de Amortiguación Tolva", value=False)
+                ch28 = st.checkbox("Válvula Corte Levante", value=False)
+                ch29 = st.checkbox("Sistema Cubre Carga (Carpa)", value=False)
+                ch30 = st.checkbox("Bisagras Traseras Portalón", value=False)
             with col_ch4:
                 st.markdown("**4. Cabina y Normativa Legal**")
-                ch31 = st.checkbox("Luces Bajas/Altas/Intermitentes", value=True)
-                ch32 = st.checkbox("Baliza Faena / Alarma Retroceso", value=True)
-                ch33 = st.checkbox("Extintor 10Kg PQS Vigente", value=True)
-                ch34 = st.checkbox("Cinturones Seguridad 3 Puntos", value=True)
-                ch35 = st.checkbox("Parabrisas sin Trizaduras", value=True)
-                ch36 = st.checkbox("Tacógrafo / GPS Operativo", value=True)
-                ch37 = st.checkbox("Certificado Revisión Técnica", value=True)
-                ch38 = st.checkbox("Permiso de Circulación", value=True)
-                ch39 = st.checkbox("Seguro SOAP Vigente", value=True)
-                ch40 = st.checkbox("Kit Emergencia (Botiquín/Triángulos)", value=True)
+                ch31 = st.checkbox("Luces Bajas/Altas/Intermitentes", value=False)
+                ch32 = st.checkbox("Baliza Faena / Alarma Retroceso", value=False)
+                ch33 = st.checkbox("Extintor 10Kg PQS Vigente", value=False)
+                ch34 = st.checkbox("Cinturones Seguridad 3 Puntos", value=False)
+                ch35 = st.checkbox("Parabrisas sin Trizaduras", value=False)
+                ch36 = st.checkbox("Tacógrafo / GPS Operativo", value=False)
+                ch37 = st.checkbox("Certificado Revisión Técnica", value=False)
+                ch38 = st.checkbox("Permiso de Circulación", value=False)
+                ch39 = st.checkbox("Seguro SOAP Vigente", value=False)
+                ch40 = st.checkbox("Kit Emergencia (Botiquín/Triángulos)", value=False)
                 
             obs = st.text_input("Reporte de Hallazgos u Observaciones Técnicas:")
             if st.form_submit_button("Firmar Documento HSE", use_container_width=True):
@@ -282,7 +288,6 @@ else:
     with tab4:
         st.subheader("🛠️ Módulo CMMS (Computerized Maintenance Management System)")
         
-        # MODIFICACIÓN: Expandido por defecto (expanded=True)
         with st.expander("➕ APERTURA DE ORDEN DE TRABAJO (O.T.)", expanded=True):
             col_o1, col_o2 = st.columns(2)
             with col_o1:
@@ -305,7 +310,7 @@ else:
             camion_sel['restante_pm'] = 10000 
             st.rerun()
 
-    # 5. COMB
+    # 5. COMB (COMBUSTIBLE)
     with tab5:
         st.subheader("⛽ Módulo de Abastecimiento y Suministros")
         c_f1, c_f2 = st.columns(2)
@@ -347,7 +352,7 @@ else:
         col_g1, col_g2 = st.columns(2)
         with col_g1:
             st.markdown("##### 📈 Curva Histórica de Egresos Mensuales (CLP)")
-            datos_grafico = pd.DataFrame({'Diésel/AdBlue': [300000, 320000, 290000, t_comb], 'Mantenimiento (O.T.)': [150000, 0, 50000, t_ot]}, index=['Abril', 'Mayo', 'Junio', 'Mes Actual'])
+            datos_grafico = pd.DataFrame({'Diésel/AdBlue': [550000, 610000, 590000, t_comb], 'Mantenimiento (O.T.)': [0, 150000, 50000, t_ot]}, index=['Abril', 'Mayo', 'Junio', 'Mes Actual'])
             st.bar_chart(datos_grafico)
         with col_g2:
             st.markdown("##### 📉 Análisis de Depreciación Lineal del Activo")
