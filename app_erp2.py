@@ -132,7 +132,8 @@ else:
     """, unsafe_allow_html=True)
 
     # --- NUEVO: CENTRO DE NOTIFICACIONES INTELIGENTES ---
-    with st.expander("🔔 Centro de Notificaciones y Alertas Globales", expanded=True):
+    # AQUÍ ESTÁ EL CAMBIO: expanded=False hace que inicie cerrado
+    with st.expander("🔔 Centro de Notificaciones y Alertas Globales", expanded=False):
         alertas = 0
         # Alertas de Flota
         for c in st.session_state.flota:
@@ -381,7 +382,6 @@ else:
         col_b1, col_b2 = st.columns([2, 1])
         
         with col_b1:
-            # Mostrar el inventario en formato tabla visual
             df_inv = pd.DataFrame(list(st.session_state.inventario.items()), columns=["Ítem / Repuesto", "Cantidad en Stock"])
             st.dataframe(df_inv, use_container_width=True)
             
@@ -403,7 +403,6 @@ else:
         
         df_rrhh = pd.DataFrame(st.session_state.choferes)
         
-        # Aplicamos un estilo visual simple a la tabla usando Pandas Styler
         def color_estados(val):
             color = 'green' if val == 'Óptimo' else 'orange' if val == 'Precaución' else 'red'
             return f'color: {color}; font-weight: bold'
@@ -411,7 +410,7 @@ else:
         st.dataframe(df_rrhh.style.map(color_estados, subset=['Estado']), use_container_width=True)
         st.caption("Nota: La jornada máxima de conducción continua es de 5 horas. Conducciones mayores generan alertas de fatiga.")
 
-    # 8. INFORMES FINANCIEROS (AHORA CON INGRESOS Y UTILIDAD)
+    # 8. INFORMES FINANCIEROS
     with tab8:
         st.subheader("📊 Inteligencia de Negocios y Control de Gestión Financiera (P&L)")
         
