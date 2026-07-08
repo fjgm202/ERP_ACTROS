@@ -11,7 +11,7 @@ DB_USUARIOS = {
     "admin1": {"nombre": "Catalyna Gajardo", "rol": "Administrador General", "nivel": 1},
     "gerente_op": {"nombre": "Fernando Gonzalez", "rol": "Gerente de Operaciones", "nivel": 1},
     "jefe_flota": {"nombre": "Nicolas Sandoval", "rol": "Jefe de Transportes", "nivel": 2},
-    "supervisor_taller": {"nombre": "Felipe Herrera", "rol": "Supervisor de Taller (CMMS)", "nivel": 2},
+    "supervisor_taller": {"nombre": "Felipe Herrera", "rol": "Supervisor de Taller", "nivel": 2},
     "mecanico_jefe": {"nombre": "Pedro Aguilera", "rol": "Mecánico Especialista A", "nivel": 3},
     "logistica1": {"nombre": "Andrés Soto", "rol": "Coordinador de Logística", "nivel": 2},
     "despachador": {"nombre": "Manuel Aravena", "rol": "Despachador de Faena", "nivel": 3},
@@ -29,14 +29,16 @@ if 'conectado' not in st.session_state:
 if 'flota' not in st.session_state:
     flota_inicial = []
     lat_base, lon_base = -38.7396, -72.6019
-    # Ratio realista corporativo: ~85% operativos
-    estados_posibles = ["OPERATIVO"] * 17 + ["BLOQUEADO EN TALLER", "MANTENCIÓN PREVENTIVA", "FUERA DE SERVICIO"]
+    
+    # REGLA ESTRICTA: Exactamente 7 operativos y 3 fuera de servicio
+    estados_flota = ["OPERATIVO"] * 7 + ["BLOQUEADO EN TALLER", "MANTENCIÓN PREVENTIVA", "FUERA DE SERVICIO"]
+    random.shuffle(estados_flota)
     
     for i in range(1, 11):
         kms_actuales = random.randint(520000, 595000)
         proxima_maint = ((kms_actuales // 10000) + 1) * 10000
         kms_restantes = proxima_maint - kms_actuales
-        estado_camion = random.choice(estados_posibles)
+        estado_camion = estados_flota[i-1] # Se asigna de la lista pre-calculada
         
         flota_inicial.append({
             "id": f"Unidad 0{i}" if i < 10 else f"Unidad {i}",
@@ -69,22 +71,22 @@ if 'flota' not in st.session_state:
 if not st.session_state.conectado:
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Logo.svg/1024px-Mercedes-Logo.svg.png", width=90)
     st.sidebar.title("SGO Gate - ERP Cloud")
-    st.sidebar.caption("Despliegue Privado | Entorno de Producción v9.0")
+    st.sidebar.caption("Despliegue Privado | Entorno de Producción v9.2")
     
     st.title("🚛 SGO Enterprise - Áridos Maquehue Ltda.")
     st.info("🔐 Autenticación Requerida: Conexión cifrada AES-256 de extremo a extremo.")
     
     col_l1, col_l2 = st.columns(2)
     with col_l1:
-        user_input = st.selectbox("Identidad de Red (Directorio Activo):", list(DB_USUARIOS.keys()), format_func=lambda x: f"{DB_USUARIOS[x]['nombre']} ({DB_USUARIOS[x]['rol']})")
+        user_input_login = st.selectbox("Identidad de Red (Directorio Activo):", list(DB_USUARIOS.keys()), format_func=lambda x: f"{DB_USUARIOS[x]['nombre']} ({DB_USUARIOS[x]['rol']})")
     with col_l2:
         pass_input = st.text_input("Credencial de Acceso (Password):", type="password", value="inacap2026")
         
     if st.button("Establecer Conexión Segura", type="primary", use_container_width=True):
         if pass_input == "inacap2026":
             st.session_state.conectado = True
-            st.session_state.usuario_id = user_input
-            st.session_state.user_info = DB_USUARIOS[user_input]
+            st.session_state.usuario_id = user_input_login
+            st.session_state.user_info = DB_USUARIOS[user_input_login]
             st.rerun()
         else:
             st.error("❌ Credenciales inválidas. Intento registrado en auditoría.")
@@ -148,24 +150,24 @@ else:
     st.caption(f"**Especificaciones Técnicas:** {camion_sel['modelo']} | **VIN:** `{camion_sel['vin']}` | **Motor:** `{camion_sel['motor_id']}`")
     st.markdown("---")
     
-    # --- MÓDULOS DEL SISTEMA ---
+    # --- MÓDULOS DEL SISTEMA (CON NOMBRES SOLICITADOS POR EL USUARIO) ---
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📡 Telemetría CanBus", 
-        "📍 Control Logístico (GPS)", 
-        "📋 Protocolo HSE (40 Pts)", 
-        "🛠️ CMMS (Mantenimiento)", 
-        "⛽ Suministros (Combustible)",
-        "📊 Inteligencia de Negocios"
+        "🏠 Panel", 
+        "📍 GPS y Rutas", 
+        "📋 Checklist Diario", 
+        "🛠️ Órdenes Taller", 
+        "⛽ Comb",
+        "📊 Informes"
     ])
     
-    # 1. TELEMETRÍA (Técnicamente Precisa)
+    # 1. PANEL
     with tab1:
         st.subheader("📡 Escáner de Diagnóstico ECM en Tiempo Real")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Odómetro Verificado", f"{camion_sel['kms']:,} Km")
         m2.metric("Horómetro Acumulado", f"{camion_sel['horas']:,} Hrs")
         
-        # Ajuste de voltaje dinámico realista (28.2V cargando, 24.2V motor apagado)
+        # Lógica Profesional de Batería intacta
         voltaje = 28.2 if camion_sel['estado'] == "OPERATIVO" else 24.2
         estado_voltaje = "Alternador Cargando" if camion_sel['estado'] == "OPERATIVO" else "Batería en Reposo"
         m3.metric("Voltaje Sistema (24V)", f"{voltaje} V", estado_voltaje, delta_color="normal" if voltaje > 26 else "off")
@@ -197,7 +199,7 @@ else:
         porcentaje_vida = max(0, min(int((rest_km / 10000) * 100), 100))
         st.progress(porcentaje_vida, text=f"Vida Útil Residual Lubricante Motor: {porcentaje_vida}%")
 
-    # 2. GPS
+    # 2. GPS Y RUTAS
     with tab2:
         st.subheader("📍 Geoposicionamiento Satelital Telemétrico")
         datos_mapa = []
@@ -210,7 +212,7 @@ else:
         st.map(pd.DataFrame(datos_mapa), color="color_gps", size="tamano_gps", zoom=11)
         st.dataframe(pd.DataFrame(camion_sel['rutas']), use_container_width=True)
 
-    # 3. CHECKLIST HSE (40 PUNTOS DETALLADOS)
+    # 3. CHECKLIST DIARIO
     with tab3:
         st.subheader("📋 Protocolo de Inspección de Seguridad (Estándar HSE - 40 Puntos)")
         with st.form("form_checklist"):
@@ -276,10 +278,12 @@ else:
                     st.success("✅ Unidad certificada para operación segura.")
                 st.rerun()
 
-    # 4. CMMS (TALLER)
+    # 4. ÓRDENES TALLER
     with tab4:
         st.subheader("🛠️ Módulo CMMS (Computerized Maintenance Management System)")
-        with st.expander("➕ APERTURA DE ORDEN DE TRABAJO (O.T.)", expanded=False):
+        
+        # MODIFICACIÓN: Expandido por defecto (expanded=True)
+        with st.expander("➕ APERTURA DE ORDEN DE TRABAJO (O.T.)", expanded=True):
             col_o1, col_o2 = st.columns(2)
             with col_o1:
                 sistema_afectado = st.selectbox("Sistema Afectado:", ["Motor", "Frenos", "Transmisión", "Sistema Hidráulico", "Sistema Eléctrico", "Tren Delantero/Neumáticos"])
@@ -293,6 +297,7 @@ else:
                     camion_sel['db_ot'].append({"ID_OT": f"OT-{random.randint(8000, 9999)}", "Sistema": sistema_afectado, "Prioridad": prioridad, "Tipo": tipo_maint, "Falla": falla, "Costo_Total": costo_est, "Estado": "Abierta", "Mecanico": info_u['nombre'], "Fecha": str(datetime.date.today())})
                     st.success("O.T. Registrada en la Base de Datos Central.")
                     st.rerun()
+                    
         st.dataframe(pd.DataFrame(camion_sel['db_ot']), use_container_width=True)
         if info_u['nivel'] <= 2 and st.button("✔️ Aprobar Reparaciones y Cerrar O.T."):
             for ot in camion_sel['db_ot']: ot["Estado"] = "Cerrada"
@@ -300,7 +305,7 @@ else:
             camion_sel['restante_pm'] = 10000 
             st.rerun()
 
-    # 5. ABASTECIMIENTO
+    # 5. COMB
     with tab5:
         st.subheader("⛽ Módulo de Abastecimiento y Suministros")
         c_f1, c_f2 = st.columns(2)
@@ -310,12 +315,14 @@ else:
         with c_f2:
             horometro = st.number_input("Lectura de Horómetro:", min_value=0, value=int(camion_sel['horas']))
             tipo = st.selectbox("Suministro:", ["Diésel Grado B", "AdBlue (Urea Automotriz)", "Lubricante 15W40"])
+            
         if st.button("Registrar Transacción de Consumo", type="primary"):
             camion_sel['db_comb'].append({"Fecha": str(datetime.date.today()), "Tipo": tipo, "Litros": litros, "Costo": costo, "Horometro": horometro, "Cargado_Por": info_u['nombre']})
             st.rerun()
+            
         st.dataframe(pd.DataFrame(camion_sel['db_comb']), use_container_width=True)
 
-    # 6. INTELIGENCIA DE NEGOCIOS (BI)
+    # 6. INFORMES
     with tab6:
         st.subheader("📊 Inteligencia de Negocios y Control de Gestión Financiera")
         
@@ -327,7 +334,6 @@ else:
         t_ot = df_o['Costo_Total'].sum() if not df_o.empty else 0
         costo_total = t_comb + t_ot
         
-        # Rendimiento proyectado
         rendimiento = (camion_sel['kms'] * 0.005) / t_litros if t_litros > 0 else 2.15 
         cpk = costo_total / camion_sel['kms'] if camion_sel['kms'] > 0 else 0
         
