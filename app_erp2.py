@@ -20,11 +20,28 @@ DB_USUARIOS = {
     "auditor_ext": {"nombre": "Auditor Externo", "rol": "Inspector / Auditoría", "nivel": 1}
 }
 
-# --- INICIALIZACIÓN DE LA NUBE Y FLOTA ---
+# --- INICIALIZACIÓN DE LA NUBE, FLOTA Y NUEVOS MÓDULOS ---
 if 'conectado' not in st.session_state:
     st.session_state.conectado = False
     st.session_state.usuario_id = ""
     st.session_state.user_info = {}
+
+if 'inventario' not in st.session_state:
+    st.session_state.inventario = {
+        "Neumáticos Direccionales": 4, 
+        "Tambores Aceite 15W40 (200L)": 2, 
+        "Filtros de Aire Primario": 12, 
+        "Juegos de Balatas": 8, 
+        "AdBlue (Litros)": 450
+    }
+
+if 'choferes' not in st.session_state:
+    st.session_state.choferes = [
+        {"Nombre": "Luis Castro", "Rut": "15.432.123-K", "Licencia": "A5", "Vencimiento": "2027-05-12", "Horas_Turno": 5.5, "Estado": "Óptimo"},
+        {"Nombre": "Manuel Aravena", "Rut": "17.221.890-4", "Licencia": "A4", "Vencimiento": "2026-08-20", "Horas_Turno": 8.5, "Estado": "Precaución"},
+        {"Nombre": "Andrés Soto", "Rut": "16.887.432-1", "Licencia": "A5", "Vencimiento": "2024-11-05", "Horas_Turno": 4.0, "Estado": "Licencia Vencida"},
+        {"Nombre": "Carlos Mella", "Rut": "14.555.333-2", "Licencia": "A5", "Vencimiento": "2028-01-30", "Horas_Turno": 12.5, "Estado": "Fatiga Severa (Alerta)"}
+    ]
 
 if 'flota' not in st.session_state:
     flota_inicial = []
@@ -38,7 +55,7 @@ if 'flota' not in st.session_state:
         kms_actuales = random.randint(520000, 595000)
         proxima_maint = ((kms_actuales // 10000) + 1) * 10000
         kms_restantes = proxima_maint - kms_actuales
-        estado_camion = estados_flota[i-1] # Se asigna de la lista pre-calculada
+        estado_camion = estados_flota[i-1]
         
         flota_inicial.append({
             "id": f"Unidad 0{i}" if i < 10 else f"Unidad {i}",
@@ -53,7 +70,6 @@ if 'flota' not in st.session_state:
             "estado": estado_camion,
             "restante_pm": kms_restantes if estado_camion == "OPERATIVO" else random.randint(-500, 1500),
             "checklist_historico": [],
-            # DATA DE COMBUSTIBLE ENRIQUECIDA CON MÁS REGISTROS HISTÓRICOS
             "db_comb": [
                 {"Fecha": "2026-04-12", "Tipo": "Diésel Grado B", "Litros": 240, "Costo": 264000, "Horometro": 18500, "Cargado_Por": "Luis Castro"},
                 {"Fecha": "2026-05-01", "Tipo": "Diésel Grado B", "Litros": 265, "Costo": 291500, "Horometro": 18720, "Cargado_Por": "Manuel Aravena"},
@@ -64,6 +80,13 @@ if 'flota' not in st.session_state:
             ],
             "db_ot": [
                 {"ID_OT": "OT-0852", "Sistema": "Frenos", "Prioridad": "Alta", "Tipo": "Correctivo", "Falla": "Desgaste balatas eje 2", "Costo_Total": 450000, "Estado": "Cerrada", "Mecanico": "Felipe Herrera", "Fecha": "2026-06-10"}
+            ],
+            # NUEVO: Base de datos de Ingresos (Fletes)
+            "db_fletes": [
+                {"Fecha": "2026-04-15", "Cliente": "Constructora Vial S.A.", "Origen": "Pozo", "Destino": "Obra Enlace", "Ingreso": 750000},
+                {"Fecha": "2026-05-22", "Cliente": "Minera Sur", "Origen": "Chancador", "Destino": "Planta", "Ingreso": 820000},
+                {"Fecha": "2026-06-28", "Cliente": "MOP Araucanía", "Origen": "Pozo", "Destino": "Reparación Ruta 5", "Ingreso": 940000},
+                {"Fecha": "2026-07-05", "Cliente": "Constructora Vial S.A.", "Origen": "Pozo", "Destino": "Obra Enlace", "Ingreso": 680000}
             ],
             "rutas": [
                 {"Fecha": str(datetime.date.today()), "Origen": "Pozo Maquehue", "Destino": "Obra Enlace", "Distancia_Km": 34, "Estado": "Completada"},
@@ -76,7 +99,7 @@ if 'flota' not in st.session_state:
 if not st.session_state.conectado:
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Logo.svg/1024px-Mercedes-Logo.svg.png", width=90)
     st.sidebar.title("SGO Gate - ERP Cloud")
-    st.sidebar.caption("Despliegue Privado | Entorno de Producción v9.3")
+    st.sidebar.caption("Despliegue Privado | Entorno de Producción v10.0 (Ultimate)")
     
     st.title("🚛 SGO Enterprise - Áridos Maquehue Ltda.")
     st.info("🔐 Autenticación Requerida: Conexión cifrada AES-256 de extremo a extremo.")
@@ -107,7 +130,32 @@ else:
         <div>📅 Fecha de Sistema: {datetime.date.today().strftime('%Y-%m-%d')}</div>
     </div>
     """, unsafe_allow_html=True)
-    
+
+    # --- NUEVO: CENTRO DE NOTIFICACIONES INTELIGENTES ---
+    with st.expander("🔔 Centro de Notificaciones y Alertas Globales", expanded=True):
+        alertas = 0
+        # Alertas de Flota
+        for c in st.session_state.flota:
+            if c['estado'] != "OPERATIVO":
+                st.error(f"⚠️ **FLOTA:** {c['id']} ({c['patente']}) se encuentra {c['estado']}.")
+                alertas += 1
+            elif c['restante_pm'] < 1000:
+                st.warning(f"🔧 **MANTENIMIENTO:** {c['id']} requiere PM pronto (Restante: {c['restante_pm']} Km).")
+                alertas += 1
+        # Alertas de Bodega
+        for item, cant in st.session_state.inventario.items():
+            if cant <= 5 and "AdBlue" not in item:
+                st.warning(f"📦 **BODEGA:** Stock crítico de '{item}' (Quedan {cant} unid).")
+                alertas += 1
+        # Alertas de RRHH
+        for ch in st.session_state.choferes:
+            if ch['Estado'] != "Óptimo" and ch['Estado'] != "Precaución":
+                st.error(f"🪪 **RRHH:** Chofer {ch['Nombre']} presenta alerta: {ch['Estado']}.")
+                alertas += 1
+        
+        if alertas == 0:
+            st.success("✅ Todos los sistemas operando dentro de los parámetros normales. Sin novedades.")
+
     # PANEL GLOBAL DE GERENCIA (Disponibilidad)
     total_camiones = len(st.session_state.flota)
     camiones_operativos = sum(1 for c in st.session_state.flota if c['estado'] == "OPERATIVO")
@@ -155,13 +203,15 @@ else:
     st.caption(f"**Especificaciones Técnicas:** {camion_sel['modelo']} | **VIN:** `{camion_sel['vin']}` | **Motor:** `{camion_sel['motor_id']}`")
     st.markdown("---")
     
-    # --- MÓDULOS DEL SISTEMA ---
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    # --- MÓDULOS DEL SISTEMA EXPANDIDOS ---
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "🏠 Panel", 
         "📍 GPS y Rutas", 
         "📋 Checklist Diario", 
         "🛠️ Órdenes Taller", 
         "⛽ Comb",
+        "📦 Bodega", 
+        "🪪 RRHH",
         "📊 Informes"
     ])
     
@@ -172,7 +222,6 @@ else:
         m1.metric("Odómetro Verificado", f"{camion_sel['kms']:,} Km")
         m2.metric("Horómetro Acumulado", f"{camion_sel['horas']:,} Hrs")
         
-        # Lógica Profesional de Batería
         voltaje = 28.2 if camion_sel['estado'] == "OPERATIVO" else 24.2
         estado_voltaje = "Alternador Cargando" if camion_sel['estado'] == "OPERATIVO" else "Batería en Reposo"
         m3.metric("Voltaje Sistema (24V)", f"{voltaje} V", estado_voltaje, delta_color="normal" if voltaje > 26 else "off")
@@ -224,7 +273,6 @@ else:
             col_ch1, col_ch2, col_ch3, col_ch4 = st.columns(4)
             with col_ch1:
                 st.markdown("**1. Fluidos y Motor**")
-                # MODIFICACIÓN: Casillas desmarcadas por defecto (value=False)
                 ch1 = st.checkbox("Nivel Aceite Carter", value=False)
                 ch2 = st.checkbox("Refrigerante Radiador", value=False)
                 ch3 = st.checkbox("Correas Accesorios", value=False)
@@ -327,32 +375,83 @@ else:
             
         st.dataframe(pd.DataFrame(camion_sel['db_comb']), use_container_width=True)
 
-    # 6. INFORMES
+    # 6. BODEGA E INVENTARIO (NUEVO)
     with tab6:
-        st.subheader("📊 Inteligencia de Negocios y Control de Gestión Financiera")
+        st.subheader("📦 Bodega y Pañol Central (Gestión de Stock)")
+        col_b1, col_b2 = st.columns([2, 1])
+        
+        with col_b1:
+            # Mostrar el inventario en formato tabla visual
+            df_inv = pd.DataFrame(list(st.session_state.inventario.items()), columns=["Ítem / Repuesto", "Cantidad en Stock"])
+            st.dataframe(df_inv, use_container_width=True)
+            
+        with col_b2:
+            st.markdown("##### 📥 Actualizar Stock")
+            item_sel = st.selectbox("Seleccionar Repuesto:", list(st.session_state.inventario.keys()))
+            cant_mod = st.number_input("Cantidad a sumar/restar:", value=1, step=1)
+            if st.button("Actualizar Inventario"):
+                st.session_state.inventario[item_sel] += cant_mod
+                if st.session_state.inventario[item_sel] < 0:
+                    st.session_state.inventario[item_sel] = 0
+                st.success("Stock actualizado en la base de datos.")
+                st.rerun()
+
+    # 7. RRHH Y TRIPULACIÓN (NUEVO)
+    with tab7:
+        st.subheader("🪪 Control de Tripulación y Fatiga (RRHH)")
+        st.markdown("Monitor de conductores activos y cumplimiento normativo legal (Ley de conducción).")
+        
+        df_rrhh = pd.DataFrame(st.session_state.choferes)
+        
+        # Aplicamos un estilo visual simple a la tabla usando Pandas Styler
+        def color_estados(val):
+            color = 'green' if val == 'Óptimo' else 'orange' if val == 'Precaución' else 'red'
+            return f'color: {color}; font-weight: bold'
+        
+        st.dataframe(df_rrhh.style.map(color_estados, subset=['Estado']), use_container_width=True)
+        st.caption("Nota: La jornada máxima de conducción continua es de 5 horas. Conducciones mayores generan alertas de fatiga.")
+
+    # 8. INFORMES FINANCIEROS (AHORA CON INGRESOS Y UTILIDAD)
+    with tab8:
+        st.subheader("📊 Inteligencia de Negocios y Control de Gestión Financiera (P&L)")
         
         df_c = pd.DataFrame(camion_sel['db_comb'])
         df_o = pd.DataFrame(camion_sel['db_ot'])
+        df_f = pd.DataFrame(camion_sel.get('db_fletes', []))
         
         t_comb = df_c['Costo'].sum() if not df_c.empty else 0
-        t_litros = df_c['Litros'].sum() if not df_c.empty else 0
         t_ot = df_o['Costo_Total'].sum() if not df_o.empty else 0
-        costo_total = t_comb + t_ot
+        t_ingresos = df_f['Ingreso'].sum() if not df_f.empty else 0
         
-        rendimiento = (camion_sel['kms'] * 0.005) / t_litros if t_litros > 0 else 2.15 
+        costo_total = t_comb + t_ot
+        utilidad_neta = t_ingresos - costo_total
+        
+        rendimiento = (camion_sel['kms'] * 0.005) / (df_c['Litros'].sum() if not df_c.empty else 1)
         cpk = costo_total / camion_sel['kms'] if camion_sel['kms'] > 0 else 0
         
+        # PRIMERA FILA: Finanzas (Ingresos vs Costos)
+        col_f1, col_f2, col_f3 = st.columns(3)
+        col_f1.metric("💰 Ingresos YTD (Fletes Cobrados)", f"${t_ingresos:,.0f}")
+        col_f2.metric("📉 OPEX YTD (Gastos Operativos)", f"${costo_total:,.0f}")
+        col_f3.metric("🏆 Utilidad Neta del Activo", f"${utilidad_neta:,.0f}", f"{(utilidad_neta/t_ingresos*100) if t_ingresos>0 else 0:.1f}% Margen", delta_color="normal")
+        
+        st.divider()
+        
+        # SEGUNDA FILA: Métricas Operativas
         col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-        col_k1.metric("OPEX YTD (Gasto Operativo)", f"${costo_total:,.0f}", "-1.5% vs Presupuesto", delta_color="inverse")
-        col_k2.metric("CAPEX/Mantenimiento Acumulado", f"${t_ot:,.0f}")
-        col_k3.metric("Rendimiento Volumétrico Diésel", f"{rendimiento:.2f} Km/L", "+0.05 Km/L")
+        col_k1.metric("Gasto en Combustible", f"${t_comb:,.0f}")
+        col_k2.metric("CAPEX / Mantenimiento", f"${t_ot:,.0f}")
+        col_k3.metric("Rendimiento Volumétrico", f"{rendimiento:.2f} Km/L")
         col_k4.metric("Costo Por Kilómetro (CPK)", f"${cpk:,.2f} /Km")
         
         st.divider()
         col_g1, col_g2 = st.columns(2)
         with col_g1:
-            st.markdown("##### 📈 Curva Histórica de Egresos Mensuales (CLP)")
-            datos_grafico = pd.DataFrame({'Diésel/AdBlue': [550000, 610000, 590000, t_comb], 'Mantenimiento (O.T.)': [0, 150000, 50000, t_ot]}, index=['Abril', 'Mayo', 'Junio', 'Mes Actual'])
+            st.markdown("##### 📈 Curva Financiera: Ingresos vs Egresos (CLP)")
+            datos_grafico = pd.DataFrame({
+                'Ingresos (Fletes)': [750000, 820000, 940000, t_ingresos],
+                'Costos (Diésel + Maint)': [300000, 470000, 340000, costo_total]
+            }, index=['Abril', 'Mayo', 'Junio', 'Acumulado Julio'])
             st.bar_chart(datos_grafico)
         with col_g2:
             st.markdown("##### 📉 Análisis de Depreciación Lineal del Activo")
@@ -365,11 +464,13 @@ else:
 
         st.markdown("---")
         st.markdown("##### 📥 Exportación de Data Marts (Integración Externa)")
-        col_d1, col_d2 = st.columns(2)
+        col_d1, col_d2, col_d3 = st.columns(3)
         with col_d1:
-            st.download_button("📥 Descargar Matriz Financiera O.T. (CSV)", df_o.to_csv(index=False).encode('utf-8'), f"CMMS_EXPORT_{camion_sel['patente']}.csv", "text/csv", use_container_width=True)
+            st.download_button("📥 Matriz O.T. (CSV)", df_o.to_csv(index=False).encode('utf-8'), f"CMMS_{camion_sel['patente']}.csv", "text/csv", use_container_width=True)
         with col_d2:
-            st.download_button("📥 Descargar Matriz Consumo (CSV)", df_c.to_csv(index=False).encode('utf-8'), f"FUEL_EXPORT_{camion_sel['patente']}.csv", "text/csv", use_container_width=True)
+            st.download_button("📥 Matriz Consumo (CSV)", df_c.to_csv(index=False).encode('utf-8'), f"FUEL_{camion_sel['patente']}.csv", "text/csv", use_container_width=True)
+        with col_d3:
+            st.download_button("📥 Matriz Ingresos (CSV)", df_f.to_csv(index=False).encode('utf-8'), f"INGRESOS_{camion_sel['patente']}.csv", "text/csv", use_container_width=True)
 
     # CERRAR SESIÓN SEGURA
     st.sidebar.divider()
