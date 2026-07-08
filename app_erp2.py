@@ -5,12 +5,12 @@ import random
 import numpy as np
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="SGO Enterprise - Áridos Maquehue v7.0", page_icon="🚛", layout="wide")
+st.set_page_config(page_title="SGO Enterprise - Áridos Maquehue v8.0", page_icon="🚛", layout="wide")
 
-# --- BASE DE DATOS DE USUARIOS (NOMBRES PERSONALIZADOS) ---
+# --- BASE DE DATOS DE USUARIOS (NOMBRES REASIGNADOS) ---
 DB_USUARIOS = {
-    "admin1": {"nombre": "Fernando Gonzalez", "rol": "Administrador General", "nivel": 1},
-    "gerente_op": {"nombre": "Catalyna Gajardo", "rol": "Gerente de Operaciones", "nivel": 1},
+    "admin1": {"nombre": "Catalyna Gajardo", "rol": "Administrador General", "nivel": 1},
+    "gerente_op": {"nombre": "Fernando Gonzalez", "rol": "Gerente de Operaciones", "nivel": 1},
     "jefe_flota": {"nombre": "Nicolas Sandoval", "rol": "Jefe de Transportes", "nivel": 2},
     "supervisor_taller": {"nombre": "Felipe Herrera", "rol": "Supervisor de Taller (CMMS)", "nivel": 2},
     "mecanico_jefe": {"nombre": "Pedro Aguilera", "rol": "Mecánico Especialista A", "nivel": 3},
@@ -145,15 +145,44 @@ else:
         "📊 Finanzas y Rentabilidad"
     ])
     
-    # 1. TAB DASHBOARD
+    # 1. TAB DASHBOARD (TELEMETRÍA EXPANDIDA)
     with tab1:
-        st.subheader("📊 Variables Críticas del Motor y Transmisión")
+        st.subheader("📊 Datos Maestros del Odómetro y Horómetro")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Odómetro de Flota", f"{camion_sel['kms']:,} Km")
         m2.metric("Horómetro Acumulado", f"{camion_sel['horas']:,} Hrs")
-        m3.metric("Voltaje Baterías", "27.1 V")
+        m3.metric("Voltaje Baterías", "27.1 V", delta="-0.2 V", delta_color="normal")
         m4.metric("Restante Pauta PM", f"{camion_sel['restante_pm']:,} Km")
         
+        st.markdown("---")
+        st.subheader("🌡️ Lectura de Sensores en Tiempo Real (Telemetría CanBus)")
+        t1, t2, t3, t4, t5 = st.columns(5)
+        # Usamos random pero condicionado al estado para darle realismo
+        if camion_sel['estado'] == "OPERATIVO":
+            t1.metric("Temp. Refrigerante", f"{random.randint(85, 92)} °C", "Normal")
+            t2.metric("Presión Aceite", f"{random.randint(40, 60)} PSI", "Óptimo")
+            t3.metric("Nivel Combustible", f"{random.randint(15, 85)} %", "Tanque")
+            t4.metric("RPM Motor", f"{random.randint(600, 1500)} RPM", "En Marcha")
+            t5.metric("Temp. Transmisión", f"{random.randint(70, 85)} °C", "Normal")
+        else:
+            t1.metric("Temp. Refrigerante", "Ambiente", "Apagado")
+            t2.metric("Presión Aceite", "0 PSI", "Apagado")
+            t3.metric("Nivel Combustible", f"{random.randint(15, 85)} %", "Tanque")
+            t4.metric("RPM Motor", "0 RPM", "Motor Detenido")
+            t5.metric("Temp. Transmisión", "Ambiente", "Apagado")
+            
+        st.markdown("---")
+        st.subheader("🛞 Monitoreo de Presión de Neumáticos (TPMS)")
+        col_tpms1, col_tpms2 = st.columns(2)
+        with col_tpms1:
+            st.write("**Ejes Delanteros (Direccionales)**")
+            st.progress(0.95, text="Eje 1 Izquierdo: 110 PSI (Normal)")
+            st.progress(0.94, text="Eje 1 Derecho: 109 PSI (Normal)")
+        with col_tpms2:
+            st.write("**Ejes Traseros (Tracción)**")
+            st.progress(0.92, text="Eje 2 (Promedio): 105 PSI (Normal)")
+            st.progress(0.91, text="Eje 3 (Promedio): 104 PSI (Normal)")
+
         st.markdown("---")
         st.subheader("⏰ Monitoreo Automático de Alertas de Mantenimiento")
         rest_km = camion_sel['restante_pm']
@@ -165,7 +194,7 @@ else:
         with col_txt_bar:
             st.metric("Vida Restante Aceite", f"{porcentaje_vida_util}%")
             
-        if rest_km <= 0 or camion_sel['estado'] != "OPERATIVO":
+        if rest_km <= 0 or camion_sel['estado'] not in ["OPERATIVO"]:
             st.error("🚨 ALERTA DE CRITICIDAD: Vehículo inoperativo o ciclo preventivo vencido. Detención obligatoria.")
         elif rest_km <= 1500:
             st.warning("⚠️ ALERTA PREVENTIVA: Faltan menos de 1,500 Km para mantención. Taller avisado.")
@@ -190,7 +219,7 @@ else:
         st.markdown("#### 🗺️ Bitácora de Tránsito Diario")
         st.dataframe(pd.DataFrame(camion_sel['rutas']), use_container_width=True)
 
-    # 3. TAB CHECKLIST (EXPANDIDO A 40 PUNTOS)
+    # 3. TAB CHECKLIST (40 PUNTOS)
     with tab3:
         st.subheader("📋 Formulario de Inspección de Seguridad Pre-Uso (40 Parámetros)")
         with st.form("super_checklist_form"):
